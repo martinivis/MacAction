@@ -6,7 +6,7 @@ vid_path = r"../../data/AnimLabel/"
 
 gamma = 0.5
 lossy= True
-resize = 0.5
+resize = 2
 
 # Adjust
 utils.adjust_videos_per_path(vid_path, gamma=gamma, resize=resize, lossy=lossy)
