@@ -6,5 +6,7 @@ executables/.ipynb_checkpoints/*
 executables/.ipynb_checkpoints
 __pycache__/
 __pycache__/*
-data/*
+data/AnimLabel/*
+data/MotionCapture/*
+data/UncannyValley/*
 
