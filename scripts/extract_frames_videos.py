@@ -1,3 +1,7 @@
+"""
+Script for the Video Extractor based on PyQtGraph
+"""
+
 import os
 from os.path import join
 import cv2
@@ -17,7 +21,6 @@ class VideoExtractor(QMainWindow):
 
         # Save video path
         self.video_path = path
-
         self.session, self.action = self.retrieve_session_info()
 
         # Get all video files
@@ -32,7 +35,7 @@ class VideoExtractor(QMainWindow):
         self.video_files = [self.video_files[i] for i in np.argsort(self.camera_names)]
         self.camera_names = np.sort(self.camera_names)
 
-        # Placeholders for pyqtgraph
+        ## Placeholders for pyqtgraph
 
         # Create a GraphicsLayoutWidget
         self.graphWidget = pg.GraphicsLayoutWidget()
@@ -61,10 +64,7 @@ class VideoExtractor(QMainWindow):
 
         # Amount of frames to move with arrow keys
         self.move_frames = 10
-
-
         self.cur_camera_index = 0
-
 
         # Grab all videos to get min_nb_frames
         self.nb_frames_cam = {}
@@ -77,9 +77,10 @@ class VideoExtractor(QMainWindow):
         self.init_frame()
 
     def retrieve_min_frames_videos(self):
-
-
-
+        """
+        Retrieve the minimum number of frames in a video in case these are not the same
+        :return:
+        """
         frames_dict = {}
         frames_list = []
 
@@ -134,25 +135,23 @@ class VideoExtractor(QMainWindow):
         self.ax.set_title(f"{self.session}, Action: {self.action}, Camera: {self.camera_names[self.cur_camera_index]}, Frame: {self.frame_number}")
         self.figure.canvas.draw()
 
-
     def init_frame(self):
 
         self.show_image()
 
-
     def get_camera_names_from_file_names(self):
-
+        """
+        Get the camera names as between first underscore and video filetype
+        :return:
+        """
         for v_file in self.video_files:
-
             pos_ = v_file.rfind("_")
-
             self.camera_names.append(int(v_file[pos_+1:-4]))
 
     def grab_video(self):
 
         cap = cv2.VideoCapture(join(self.video_path, self.video_files[self.cur_camera_index]))
 
-        #self.frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         self.fps = int(cap.get(cv2.CAP_PROP_FPS))
         self.width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -166,47 +165,38 @@ class VideoExtractor(QMainWindow):
 
         cap.release()
 
-
     def keyPressEvent(self, event):
-
+        """
+        Handle different keyboard events
+        :param event:
+        :return:
+        """
         if event.key() == Qt.Key_Right:
-
             self.frame_number += self.move_frames
-
             if self.frame_number > self.frame_count:
                 self.frame_number = self.frame_count
-
             print(self.frame_number)
-
             self.grab_video()
             self.show_image()
 
         elif event.key() == Qt.Key_Left:
-
             self.frame_number -= self.move_frames
-
             if self.frame_number < 0:
                 self.frame_number = 0
-
             print(self.frame_number)
-
             self.grab_video()
             self.show_image()
 
         elif event.key() == Qt.Key_Up:
             self.cur_camera_index += 1
-
             if self.cur_camera_index == self.nb_cameras:
                 self.cur_camera_index = self.nb_cameras - 1
-
             self.grab_video()
             self.show_image()
         elif event.key() == Qt.Key_Down:
             self.cur_camera_index -= 1
-
             if self.cur_camera_index < 0:
                 self.cur_camera_index = 0
-
             self.grab_video()
             self.show_image()
         elif event.key() == Qt.Key_R:
@@ -224,8 +214,11 @@ class VideoExtractor(QMainWindow):
                 self.move_frames = 1
             print("Move Frames: ", self.move_frames)
 
-
     def save_images(self):
+        """
+        Save the extracted frames of the videos in specific folders with camera names
+        :return:
+        """
 
         labeled_img_path = join(self.video_path, "labeled_images")
         if not os.path.exists(labeled_img_path):
@@ -246,10 +239,8 @@ class VideoExtractor(QMainWindow):
             nb_frames_vid = cap.get(cv2.CAP_PROP_FRAME_COUNT)
 
             add = 0
-
             if nb_frames_vid > self.min_frames:
                 add = 1
-
             frame_index = add + self.frame_number
 
             print(f"Cam{camera_name}: {frame_index}")

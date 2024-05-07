@@ -1,3 +1,7 @@
+"""
+Utility functions for triangulation, epipolar lines, exporting to DLC, cropping, gamma changes to videos.
+"""
+
 import os
 import cv2
 import numpy as np
@@ -14,6 +18,7 @@ def rep_error(p1, p2):
     return np.linalg.norm(p1-p2)
 
 def rel_abs_conversion(R, t):
+    # Convert camera coordinates description from world to camera and vice-versa
     return R.T, -R.T@t
 
 def powerset(iterable, min_nb_triangulation = 2, max_set = 0):
@@ -39,11 +44,11 @@ def powerset(iterable, min_nb_triangulation = 2, max_set = 0):
 
 def essential_FromRt(R1, t1, R2, t2):
     """
-
+    Create essential matrices
     :param R1: camera rotation in first camera coordinate system
     :param t1: world origin in first camera coordinate system
-    :param R2:
-    :param t2:
+    :param R2: camera rotation in second camera coordinate system
+    :param t2: world origin in second camera coordinate system
     :return:
     """
 
@@ -59,9 +64,9 @@ def essential_FromRt(R1, t1, R2, t2):
 def fundamental_From_Essential(K1, K2, E):
     """
     Compute fundamental matrix from essential, and intrinsics, also clean it up so it has guaranteed rank 2
-    :param K1:
-    :param K2:
-    :param E:
+    :param K1: Intrinsic matrix of first camera
+    :param K2: Intrinsic matrix of second camera
+    :param E: Essential matrix
     :return:
     """
 
@@ -151,8 +156,6 @@ def adjust_gamma(image, gamma=0.6):
     # apply gamma correction using the lookup table
     return cv2.LUT(image, table)
 
-
-
 def get_cdf_for_HE(img_brightness):
 
     # Get brignthness transform
@@ -202,17 +205,21 @@ def possible_cropping(img, UL, LR):
 
     return img[y_s:y_e, x_s:x_e, :], [UL, LR]
 
-def adjust_videos_per_path(path, gamma=0.6, resize=1, lossy=True, max_frames = None, apply_HE=False,
-                           folder_name ="processed", resize_area = None, video_extension = '.avi'):
+def adjust_videos_per_path(path, gamma=0.6, resize=1, lossy=True, apply_HE=False, folder_name="processed",
+                           resize_area=None, video_extension='.avi'):
     """
-    Makes videos the same length, changes the gamma value and compression!
-    You actually can not compress with IoI first and then load and save uncompressed because this would actually apply
-    compression again. Normally you should be able to have it in the same compression format, but hard to handle.
-    :param path:
-    :param gamma:
-    :param lossy:
+    Adjusting videos per path in gamma, image size or compression.
+    :param path: Path where videos are stored and should be altered
+    :param gamma: Gamma for gamma correction
+    :param resize: Resize factor
+    :param lossy: AVI or MJPG format to store (lossless, lossy), boolean
+    :param apply_HE: Apply histogram equalization or not
+    :param folder_name: Folder name of processed videos
+    :param resize_area: Give specific numbers to width and height to resize
+    :param video_extension: The video extension of the videos
     :return:
     """
+
     print(path)
     files = os.listdir(path)
 
@@ -344,11 +351,23 @@ def adjust_videos_per_path(path, gamma=0.6, resize=1, lossy=True, max_frames = N
 
 
 def skew(x):
+    """
+    Return a skew matrix of a vector cross product
+    :param x:
+    :return:
+    """
     return np.array([[0, -x[2], x[1]],
                      [x[2], 0, -x[0]],
                      [-x[1], x[0], 0]])
 
 def triangulate_simple(points, camera_mats):
+    """
+    Triangulation by svd
+    Adapted from: https://github.com/lambdaloop/aniposelib/blob/master/aniposelib/cameras.py
+    :param points:
+    :param camera_mats:
+    :return:
+    """
     num_cams = len(camera_mats)
     A = np.zeros((num_cams * 2, 4))
     for i in range(num_cams):

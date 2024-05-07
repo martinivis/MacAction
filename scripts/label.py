@@ -1,3 +1,7 @@
+"""
+Script containing AnimLabel functionality based on pyqtgraph
+"""
+
 from scripts.camera import System
 import numpy as np
 import os
@@ -19,36 +23,28 @@ from PyQt5.QtCore import Qt, pyqtSignal
 
 
 class GraphWindow(pg.GraphicsLayoutWidget):
+    """
+    Graph Window or single viewpoint window
+    """
 
+    # Signals for all the actions possible
     dotPlacedSignal = pyqtSignal(float, float, str)
-
     keyframeChangedSignal = pyqtSignal(int)
-
     toggleEpipolarSignal = pyqtSignal()
-
     saveConfigSignal = pyqtSignal()
-
     nextMarkerSignal = pyqtSignal()
-
     changeMarkerSignal = pyqtSignal(int)
-
     changeMarkerCycleSignal = pyqtSignal()
-
     changeIndividualSignal = pyqtSignal()
-
     occlusionChangedSignal = pyqtSignal(str)
-
     saveLabelsSignal = pyqtSignal()
-
     exitSignal = pyqtSignal()
-
     flipIndSignal = pyqtSignal()
 
     def __init__(self, window_container, title="More specific stuff", camera="0", *args, **kwargs):
         super().__init__( *args, **kwargs)
+
         self.setWindowTitle(title)
-
-
         self.main_window = window_container
 
         # Create a title of the plot
@@ -58,12 +54,12 @@ class GraphWindow(pg.GraphicsLayoutWidget):
 
         # Empty image
         self.image = None
+        # Camera name
         self.camera = camera
 
         # By index, consists of (x, y, occ, dot_object, label_object)
         self.points = []
         self.lines = {}
-
 
         ## Legend
         # Initialize the legend
@@ -72,7 +68,6 @@ class GraphWindow(pg.GraphicsLayoutWidget):
 
         # Position the legend at the top-right corner of the plot area
         self.legend.anchor((1, 0), (1, 0), offset=(-10, 10))
-
 
         # Show the figure
         self.show()
@@ -83,7 +78,7 @@ class GraphWindow(pg.GraphicsLayoutWidget):
         self.pen = pg.mkPen(color='y', style=Qt.DashLine)
 
     def addPoint(self, x, y, occ, label_str):
-
+        # Add a new point in image
         occ = int(occ)
 
         # Change color by occ value
@@ -93,14 +88,13 @@ class GraphWindow(pg.GraphicsLayoutWidget):
         label = pg.TextItem(text=label_str, color=(255, 255, 255))
         self.plot.addItem(label)
         label.setPos(x, y)
-
         self.points.append((x, y, occ, plotDataItem, label))
 
     def addLine(self, xs, ys, cam_name):
+        # Add a line
 
         plotDataItem = self.plot.plot(xs, ys, pen=self.pen)
         plotDataItem.setVisible(0)
-
         self.lines[cam_name] = plotDataItem
 
 
@@ -126,7 +120,6 @@ class GraphWindow(pg.GraphicsLayoutWidget):
 
         # Save the image in the class
         self.image = image
-
         height, width = image.shape[:2]
 
         # Create an ImageItem
@@ -142,7 +135,6 @@ class GraphWindow(pg.GraphicsLayoutWidget):
 
         # Set the new Image as image
         self.imgItem.setImage(image)
-
         height, width = image.shape[:2]
 
         # Save the image
@@ -153,7 +145,11 @@ class GraphWindow(pg.GraphicsLayoutWidget):
 
 
     def keyPressEvent(self, event):
-
+        """
+        Emit Signals based on keyboard press events to parent class
+        :param event: Keyboard event to process
+        :return:
+        """
         if event.key() == Qt.Key_Right:
             self.keyframeChangedSignal.emit(1)
         elif event.key() == Qt.Key_Left:
@@ -197,6 +193,9 @@ class GraphWindow(pg.GraphicsLayoutWidget):
 
 
 class MainWindow(QMainWindow):
+    """
+    Main window class organizing GraphWindows and handling signals with Label class object
+    """
     def __init__(self, LabelSys):
         super().__init__()
         self.graph_windows = {}
@@ -206,11 +205,9 @@ class MainWindow(QMainWindow):
         title = f"Camera View {cam}"
         graph_window = GraphWindow(window_container=self, title=title, camera=cam)
 
-
-        # Add the Signal
+        # Add the Signals
         graph_window.dotPlacedSignal.connect(self.dotPlaced)
         graph_window.keyframeChangedSignal.connect(self.keyframeChange)
-
         graph_window.toggleEpipolarSignal.connect(self.toggleEpipolar)
         graph_window.saveConfigSignal.connect(self.saveConfig)
         graph_window.nextMarkerSignal.connect(self.nextMarker)
@@ -229,7 +226,7 @@ class MainWindow(QMainWindow):
         return graph_window
 
     def toggleEpipolar(self):
-
+        # Toggle epipolar lines to show
         self.labelsys.epipolar_toggle = not self.labelsys.epipolar_toggle
 
         if self.labelsys.epipolar_toggle:
@@ -246,17 +243,18 @@ class MainWindow(QMainWindow):
 
 
     def saveConfig(self):
+        # Save canvas configuration to not rearrange the windows again after re-starting the program
 
         geometry_windows = {}
-
         for cam, graph_window in self.graph_windows.items():
             geometry_windows[str(cam)] = {'geometry': graph_window.geometry().getRect()}
-                                     #'viewRange': graph_window.plot.viewRange()}
 
         self.labelsys.canvas_configuration = geometry_windows
         self.labelsys.save_details(update=True)
 
     def nextMarker(self):
+        # Go on to the next marker and update parameters
+        # Only if mean rep error is below 5 pixels
 
         if self.labelsys.cur_mean_rep_er < 5:
             if self.labelsys.marker_selected + 1 < self.labelsys.nb_markers:
@@ -265,25 +263,19 @@ class MainWindow(QMainWindow):
                 self.labelsys.marker_selected = 0
 
             self.labelsys.marker_cycle, _ = divmod(self.labelsys.marker_selected + 1, 10)
-
             self.labelsys.cur_mean_rep_er = -1
             # Reset rep error per marker in each frame to -1 either way, maybe make this with calculus, but not sure
             for cam_name in self.labelsys.sys_dict.keys():
                 self.labelsys.cur_key_frame[cam_name][-1] = -1
-            # redraw routine erst nach click callen nicht nach anderer auswahl, bisschen schneller.
-            # das vllt auch nach calculations erst für reprojection.
             # Undraw epipolar lines
             self.labelsys.make_lines_invisible()
             self.labelsys.update_title_figures()
 
         else:
-
-
             print(f"You probably missed updating a label in {self.labelsys.cur_frame}. Marker: {self.labelsys.label_names[self.labelsys.marker_selected]}")
 
-
     def changeMarker(self, marker_number):
-
+        # Change or update a specific marker by marker number
         self.labelsys.update_cur_marker(event_key=marker_number)
         self.labelsys.cur_mean_rep_er = -1
         # Reset rep error per marker in each frame to -1 either way, maybe make this with calculus, but not sure
@@ -294,7 +286,7 @@ class MainWindow(QMainWindow):
         self.labelsys.update_title_figures()
 
     def changeMarkerCycle(self):
-
+        # Change the current marker cycle
         if self.labelsys.marker_cycle + 1 > self.labelsys.max_cycle:
             self.labelsys.marker_cycle = 0
         else:
@@ -303,7 +295,7 @@ class MainWindow(QMainWindow):
         self.labelsys.update_title_figures()
 
     def changeIndividual(self):
-
+        # Increase the individual index
         new_individual = self.labelsys.ind_selected + 1
 
         # Individuals is 0-indexed
@@ -317,7 +309,6 @@ class MainWindow(QMainWindow):
         self.labelsys.update_title_figures()
 
     def occlusionChanged(self, camera):
-
         self.labelsys.occlusion_change(camera)
 
 
@@ -326,12 +317,9 @@ class MainWindow(QMainWindow):
         self.labelsys.save_labels()
 
     def exit(self):
-
         print("Backup before exiting")
         self.labelsys.save_labels(alter_string=f"_{str(dt.now())[:-7].replace(':', '-').replace(' ', '_')}")
-
         self.labelsys.print_feedback_labeling()
-
 
         for graphwindow in self.graph_windows.values():
             graphwindow.close()
@@ -345,8 +333,6 @@ class MainWindow(QMainWindow):
 
     def dotPlaced(self, x, y, cam):
         # Called when a dot is placed in any GraphWindow
-
-
         # if clicked then add UL to the pixel position
         if self.labelsys.load_cropped:
             [UL, LR] = self.labelsys.init_crop_params[str(self.labelsys.cur_frame)][cam]
@@ -367,32 +353,38 @@ class MainWindow(QMainWindow):
 
 
     def keyframeChange(self, direction):
-
+        # Change the keyframe to label
         if direction > 0:
             # Right
-
             if self.labelsys.frame_ind + 1 < self.labelsys.frames_labeled_indices.__len__():
                 self.labelsys.frame_ind += 1
                 self.labelsys.load_keyframe()
-
         else:
             # Left
             if self.labelsys.frame_ind - 1 >= 0:
                 self.labelsys.frame_ind -= 1
                 self.labelsys.load_keyframe()
 
-
-
-
-# p is used for the transitioning tool
-# n can be used to set to next marker
 class Labeling(System):
     def __init__(self, calib_path, vid_path, nb_markers, names_individuals=['Ind1'], load_cropped=False,
                  copy_labels=False, label_names=None, bodyparts_names=None, prev_labels=None, reduced_bp=None,
                  reset_labels=[], image_extension='png', config_path=None):
+        """
 
-
-
+        :param calib_path: Path to the calibration file
+        :param vid_path: Path to the action folder
+        :param nb_markers: Number of markers for one individual
+        :param names_individuals: Names of the individuals
+        :param load_cropped: Load cropped images?
+        :param copy_labels: Copy labels from previous frames
+        :param label_names: Provide names for markers in labeling
+        :param bodyparts_names: Provide names for markers in DLC export
+        :param prev_labels: Previous labels to further use in case of reset labels
+        :param reduced_bp: Reduced bodyparts for DLC export
+        :param reset_labels: Reseting labels for labeling, boolean
+        :param image_extension: Extension of labeled image, usually png
+        :param config_path: Config path to DLC
+        """
 
         super().__init__(calib_path)
 
@@ -405,17 +397,12 @@ class Labeling(System):
         self.fundamentals = {}
 
         # For labeling, exporting and transfering labels
-
-
         self.label_names = label_names
         self.bodyparts_names = bodyparts_names
         self.prev_labels = prev_labels
         self.reduced_bp = reduced_bp
 
         self.image_extension = image_extension
-
-
-        # change to read video camera parameters if there are
 
         # Loads the camera calibration file
         self.check_for_recalibration()
@@ -467,10 +454,6 @@ class Labeling(System):
         # Initially they will not be shown
         self.epipolar_toggle = False
 
-
-        # change this, to reading frame names in directory
-        #self.load_trk_labels(vid_path)
-
         self.startup = True
         self.frame_ind = 0
         self.cur_frame = 0
@@ -490,10 +473,6 @@ class Labeling(System):
             self.max_cycle = a - 1
         else:
             self.max_cycle = a
-
-
-        # Selected individual, which will for now share all the markers of first individual
-
 
         self.v_marker = MarkerStyle("+")
         self.o_marker = MarkerStyle(".")
@@ -517,8 +496,6 @@ class Labeling(System):
 
         self.copy_labels = copy_labels
 
-
-
         ## QT Plotting related
         self.app = QApplication([vid_path])
         # Create a main_window
@@ -531,16 +508,14 @@ class Labeling(System):
         print(f"Individual(s) : {self.names}")
         print(f"Frames: {self.frames_labeled_indices}")
 
-    def save_details(self, update = False):
-
-
+    def save_details(self, update=False):
+        # Save details of the particular action
 
         # Check if the file exists
         label_info_path = join(self.vid_path, 'labeling_info.yaml')
 
         # Create new YAML object
         ruamel_file = YAML()
-
 
         # Write it
         if update:
@@ -565,29 +540,22 @@ class Labeling(System):
             self.canvas_configuration = config_file['canvas_configuration']
 
     def write_details(self, ruamel_file, label_info_path):
+        # Write details to file with ruamel_yaml
 
         # Create new yaml file for details
         info_dict = {}
-
         info_dict['names_individuals'] = self.names
 
-
         if self.canvas_configuration is not None:
-
-
             if self.config_path == self.vid_path:
                 info_dict['canvas_configuration'] = self.canvas_configuration
-
             else:
-
                 config_ruamel = YAML()
                 config_dict = {}
                 config_dict['canvas_configuration'] = self.canvas_configuration
-
                 # Dump the config file
                 with open(self.config_path, 'w') as f:
                     config_ruamel.dump(config_dict, f)
-
                 info_dict['canvas_configuration'] = None
             print(info_dict)
         else:
@@ -596,9 +564,11 @@ class Labeling(System):
             ruamel_file.dump(info_dict, f)
 
     def init_labels(self):
-
+        """
+        Initialize labels
+        :return:
+        """
         # Check if labels in path exist, if yes, load them otherwise init and save
-
         dir_info = os.listdir(self.vid_path)
 
         # Only checking for one not occ
@@ -619,9 +589,7 @@ class Labeling(System):
                 # Video length should not change
                 self.init_default_labels(nb_individuals=self.nb_individuals)
 
-
                 # Make sure to have the same names in the labels
-
                 # Iter over new bodyparts and check if a similiar one exists in previous marker set
                 # If so transfer previous labels into labels
 
@@ -655,11 +623,8 @@ class Labeling(System):
 
 
     def print_feedback_labeling(self):
-
         # Take any cam
-
         cam = list(self.sys_dict.keys())[0]
-
         print_flag = False
         for frame in self.frames_labeled_indices:
             for ind in range(self.nb_individuals):
@@ -675,7 +640,7 @@ class Labeling(System):
 
     def flip_markers_of_individuals_per_frame(self):
         """
-        Only for 2 individuals
+        Only for 2 individuals, flips markers of the individuals in case these were swapped
         :return:
         """
 
@@ -716,7 +681,6 @@ class Labeling(System):
             self.fundamentals[cam_name_right] = fund_dict
 
     def update_marker_shift(self):
-
         self.marker_shift = self.ind_selected * self.nb_markers
 
     def flip_occ_all(self):
@@ -729,15 +693,13 @@ class Labeling(System):
 
     def calculate_new_markerselection(self, k):
         """
-        k is equivalent to keyboard press
+        k is equivalent to keyboard press, and gives the marker by number
         """
 
         if k == 0:
             l = 9
         else:
             l = k - 1
-
-
         shifted_l = l + 10 * self.marker_cycle
 
         if shifted_l < self.nb_markers:
@@ -748,8 +710,6 @@ class Labeling(System):
 
 
     def update_cur_marker(self, event_key=None):
-
-
         # Key press event
         if event_key is not None:
             self.calculate_new_markerselection(int(event_key))
@@ -803,21 +763,15 @@ class Labeling(System):
 
 
     def check_for_recalibration(self):
-
-
         if os.path.isfile(join(self.vid_path, "recalibration.mat")):
-
             print("Loading RE-calibrated system file")
             self.read_cam_params(alter_path=self.vid_path, extension="recalibration")
-
         else:
             print("Loading calibration system file")
             self.read_cam_params()
 
     def get_nb_frames_vid(self):
-
         dir_info = os.listdir(self.vid_path)
-
         for file in dir_info:
             # Just pick one
             if ('.avi' in file) or ('.mp4' in file):
@@ -826,10 +780,8 @@ class Labeling(System):
                 self.vid_length = length
                 cap.release()
                 break
-
-
     def load_keyframe(self):
-
+        # Load a keyframe, basic display function
 
         if self.label_names is None:
             raise ValueError("Please define label_names for labeling!")
@@ -838,7 +790,7 @@ class Labeling(System):
         frame = self.frames_labeled_indices[self.frame_ind]
         self.cur_frame = frame
 
-
+        # First frame?
         if self.startup:
             frames = {}
 
@@ -855,9 +807,7 @@ class Labeling(System):
                     # Change height and width again
                     height, width = img.shape[:2]
 
-
                 ## PyQTGRAPH
-
                 # Put titles as well
                 m_string = f"[{1 + self.marker_cycle * 10}, {(self.marker_cycle + 1) * 10}]"
                 er = -1
@@ -891,12 +841,8 @@ class Labeling(System):
                         label_str = f"{i + 1}"
                         graph_window.addPoint(x, y, occ, label_str)
 
-
-
                 ## Create all the epipolar lines and set their visibility to 0, (Init)
-
                 line_x = np.arange(0, width, 1)
-
                 vis_ep_lines_cam = {}
                 # Be careful not to shadow
                 for cam_name in self.sys_dict.keys():
@@ -910,19 +856,11 @@ class Labeling(System):
 
                 frames[cam] = [er]
 
-
-
-
-
-
             self.startup = False
 
             # Creating a show call for pyqtgraph
             self.main_window.show()
-
             self.cur_key_frame = frames
-
-
 
         else:
 
@@ -940,8 +878,6 @@ class Labeling(System):
                     img = img[UL[1]:LR[1], UL[0]:LR[0], :]
                     # Change height and width again
                     height, width = img.shape[:2]
-
-                #im.remove()
 
                 # Set
                 graph_window = self.main_window.graph_windows[cam]
@@ -965,9 +901,7 @@ class Labeling(System):
                         xy_disp[0] -= UL[0]
                         xy_disp[1] -= UL[1]
 
-
                     graph_window.changePoint(xy_disp[0], xy_disp[1], occ, i)
-
 
                 # Undraw lines and set them invisible
                 self.set_invisible_flags_epi_lines()
@@ -1003,21 +937,19 @@ class Labeling(System):
     def update_title_figures(self):
 
         for cam in self.sys_dict.keys():
-
-
-
             graph_window = self.main_window.graph_windows[cam]
-
             er = self.cur_key_frame[cam][-1]
-
             m_string = f"[{1+self.marker_cycle*10}, {(self.marker_cycle+1)*10}]"
-
             new_title = (f"Cam: {cam}, Frame: {self.cur_frame}, {self.names[self.ind_selected]}, Marker: {self.marker_selected + 1} ({m_string}, {self.label_names[self.marker_selected]}), Error: ({er:.2f}, "
                 f"{self.cur_mean_rep_er:.2f}, {self.cur_best_set_size}, {self.cur_set_size})")
-
             graph_window.update_title(new_title)
 
     def draw_epipolar_lines(self, labeled_cams):
+        """
+        Update all epipolar lines in the views
+        :param labeled_cams: Cameras that have labeled markers within
+        :return:
+        """
 
         # Make all invinsible
         self.make_lines_invisible()
@@ -1045,7 +977,6 @@ class Labeling(System):
                     line = self.main_window.graph_windows[cam_name].lines[labeled_cam]
 
                     # Get line x data, negative as well to get more points in image?
-
                     range_epi_images = 1 # 5
                     line_x = np.linspace(-range_epi_images*self.sys_dict[cam_name].im_size[0],
                                          range_epi_images*self.sys_dict[cam_name].im_size[0], self.epipolar_samples)
@@ -1064,9 +995,6 @@ class Labeling(System):
                         x_d, y_d = utils.distort_point(line_x[i], line_y[i], K2, d2)
                         line_dist[i, 0] = x_d
                         line_dist[i, 1] = y_d
-
-
-                    #line.set_offsets(line_dist)
 
                     # Move the projected line to the cropped area region.
                     if self.load_cropped:
@@ -1098,14 +1026,16 @@ class Labeling(System):
                 self.vis_epipolar_lines[cam][cam2] = 0
 
     def max_bb_crop_area(self):
+        """
+        Init cropping for frames and cameras
+        :return:
+        """
 
         for cam in self.sys_dict.keys():
-
             min_y = 10000
             max_y = 0
             min_x = 10000
             max_x = 0
-
             for frame in self.frames_labeled_indices:
                 [UL, LR] = self.init_crop_params[str(frame)][cam]
 
@@ -1122,9 +1052,11 @@ class Labeling(System):
                 self.init_crop_params[str(frame)][cam] = [np.array([min_x, min_y]),
                                                           np.array([max_x, max_y])]
 
-
-
     def check_reprojection(self):
+        """
+        Check if there were enough points labeled to not only draw epipolar lines but also reproject points
+        :return:
+        """
         # Check how many were already labeled, change to array?
         points_labeled, labeled_cams = self.get_nb_vis_points()
 
@@ -1221,14 +1153,14 @@ class Labeling(System):
                                   ):
         """
         Resize only works for non-cropping and if resize is larger than 1
-        :param writer:
-        :param base_path:
-        :param DEST:
-        :param vid_index:
-        :param reduce:
-        :param crop:
-        :param dev_mm:
-        :param resize:
+        :param writer: Write object
+        :param base_path: Path where images came from
+        :param DEST: Destination path
+        :param vid_index: Video index of that action (usually when iterating over a list of actions)
+        :param reduce: Reduce the keypoints
+        :param crop: Crop the images
+        :param dev_mm: Deviation in mm 3D to crop
+        :param resize: Resize the images by a factor
         :return:
         """
 
@@ -1338,9 +1270,7 @@ class Labeling(System):
 
         if crop:
             # Save to vid path, and aggregate afterwards
-            #np.save(join(DEST, "cropping_info_DLC_export.npy"), crop_params_frames)
             np.save(join(self.vid_path, "cropping_info_DLC_export.npy"), crop_params_frames)
-
             return crop_params_frames
 
     def crop_export_MaskRCNN(self, DEST, VID_PATHS, dev_mm=75):
@@ -1349,7 +1279,6 @@ class Labeling(System):
         images cropping parameters
         :return:
         """
-
         crop_vid_params = {}
 
         for vid_index, vid_path in enumerate(VID_PATHS):
@@ -1397,11 +1326,11 @@ class Labeling(System):
     def crop_3d(self, frame, cam_name, dev_mm, ind_index=None):
         """
         Crop in 3d along camera plane
-        :param frame:
-        :param cam_name:
-        :param dev_mm:
+        :param frame: Specific frame
+        :param cam_name: Camera name
+        :param dev_mm: Deviations in 3D for clipping
         :param shift_labels: Shift labels as well? Will be returned as well then
-        :return:
+        :return: Bounding box per camera
         """
 
         if ind_index is not None:
@@ -1452,11 +1381,11 @@ class Labeling(System):
     def write_frame_markers_row(self, writer, coords, labels, image_shape, all_names_ordered, reduce=False, vid_index=0,
                                 names_list=[], convert_to_single_animal=True):
         """
-        :param writer:
-        :param coords:
-        :param labels:
+        :param writer: Write object
+        :param coords: Coordinates list in DLC style
+        :param labels: Labels to extract coordinates from
         :param image_shape: Shape of image as ndarray
-        :param reduce:
+        :param reduce: Reduced bodyparts?
         :return:
         """
 
@@ -1466,13 +1395,6 @@ class Labeling(System):
 
         if reduce:
             bp_iter = self.reduced_bp
-
-
-        # Depending on position of the name in max name list, make empty strings
-
-        # Changed to directly use all names ordered
-        #max_names_list = max(names_list)
-
 
         name_list_video = names_list[vid_index]
 
@@ -1515,7 +1437,15 @@ class Labeling(System):
 
 
     def alter_DLC_config(self, bodyparts, marker_pairs, config_path, batch_size = 8, PAN=False):
-
+        """
+        Alter the DLC config for new bodyparts
+        :param bodyparts: List of bodyparts
+        :param marker_pairs: The skeleton in marker pairs
+        :param config_path: The path to the config file
+        :param batch_size: The batch size to use in DLC training
+        :param PAN: Panoptic specific changes to exporting
+        :return:
+        """
 
         # Load the config first
         ruamel_file = YAML()
@@ -1533,10 +1463,6 @@ class Labeling(System):
         else:
             # Config file changes attributes
             yaml_file['multianimalbodyparts'] = bodyparts
-
-            #ind_list = []
-            #for j in range(self.nb_individuals):
-            #    ind_list.append(f"individual{j+1}")
 
             # IN PANOPTIC CASE there is the individuals as list of list passed
             if self.names.__len__() == 1:
@@ -1565,17 +1491,25 @@ class Labeling(System):
 
         print("Config file has been updated.")
 
-
     def export_to_DLC(self, DEST, scorer, subfolder, VID_PATHS, CALIB_PATHS, reduce=False, crop=False, resize=1, dev_mm = 75,
                       convert_to_single_animal=True, PAN=False, name_list=0, image_ext='png', reduced_cam_list=None):
-        """
 
+        """
+        Export to DLC
         :param DEST: Labeling destination folder
         :param scorer: name of the scorer specified in DLC project
         :param subfolder: Subfolder in DLC project
         :param VID_PATHS: list of labeled video paths
-        :param reduce: Reduce the joints?
-        :param crop: crop them from space?
+        :param CALIB_PATHS: list of calibration paths
+        :param reduce: Reduce the joints
+        :param crop: Crop them in 3D
+        :param resize: Resize the images by factor
+        :param dev_mm: The deviation in 3D in mm to generate the bounding boxes
+        :param convert_to_single_animal: Convert a multi-animal case into single-animal
+        :param PAN: Panoptic data (boolean)
+        :param name_list: List of the names in the individual actions
+        :param image_ext: The extension of the images in the labeled paths
+        :param reduced_cam_list: A reduced number of cameras to export from
         :return:
         """
 
@@ -1584,8 +1518,6 @@ class Labeling(System):
 
         if reduce and self.reduced_bp is None:
             raise ValueError("Please define reduced body parts for reduced DLC export!")
-
-
         if not PAN:
 
             names_list = []
@@ -1599,7 +1531,6 @@ class Labeling(System):
 
                     names_list.append(yaml_file['names_individuals'])
 
-
             # Get video with most individuals
             all_names_ordered = max(names_list)
 
@@ -1608,11 +1539,8 @@ class Labeling(System):
 
         else:
 
-
             names_list = name_list
-
             unique_items = []
-
             for l in name_list:
                 for item in l:
                     if item in unique_items:
@@ -1632,11 +1560,8 @@ class Labeling(System):
         if reduce:
             bp_iter = self.reduced_bp
 
-
         with open(join(DEST, f'CollectedData_{scorer}.csv'), 'a', newline='') as f:
-
             writer = csv.writer(f)
-
             # Header
             row = ['scorer']
             for i in range(len(bp_iter*self.nb_individuals)):
@@ -1725,22 +1650,14 @@ class Labeling(System):
         subset_labels_indices = []
 
         if method == 'single':
-
             subset_labels_indices = np.array(self.frames_labeled_indices[nb_labels//2])
-
         elif method == 'half':
-
             subset_labels_indices = self.frames_labeled_indices[::2]
-
         elif method == 'fraq':
             # Use a fraction of the whole sequence to determine the number of images to retrieve and divide the sequence
             # into by the number of images retrieved uniformly (round wherever needed)
-
-
             assert fraq != 0
-
             assert fraq <= 1
-
             extract = nb_labels * fraq
 
             # Extract must be smaller than nb_labels, and as a result make sure to have fraq <=1

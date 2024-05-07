@@ -1,5 +1,6 @@
 """
-Camera System class
+Camera and CameraSystem classes for storing OpenCV camera parameters, triangulation,
+loading labels and animation.
 """
 
 # Imports
@@ -22,17 +23,16 @@ matplotlib.use('Qt5Agg')
 
 class System:
 
-    def __init__(self, calib_path, calib_format='mp4', skip_frames=40, manual_inspection=False,
-                 fix_aspec=False, nb_individuals=1):
+    def __init__(self, calib_path, nb_individuals=1):
+        """
+        Initialise the system object.
+        :param calib_path: Path to the calibration file.
+        :param nb_individuals: Number of individuals to track potentially
+        """
 
         # Dictionary containing cameras by names as keys
         self.sys_dict = {}
-
-        self.calib_list = []
         self.calib_path = calib_path
-        self.calib_format = calib_format
-
-        self.calib_nb_frames = 0
 
         # Video labels path
         self.vid_path = None
@@ -44,30 +44,36 @@ class System:
         # Dictionary over camera names: with (nb_markers, nb_frames_labeled) and occlusion or not as 0 (vis) or 1 (occ)
         self.occs = {}
 
+        # If labels and points should be disturbed for calibration analysis
         self.disturb = False
+        # GT Labels that are undisturbed
         self.gt_labels = {}
 
+        # Labeled frames
         self.frames_labeled_indices = None
         self.frames_labeled = {}
-        self.marker_counts = {}
 
-        # triangulated poses
+        # Triangulated poses
         self.poses = {}
-        # reprojections
+        # Reprojections and errors
         self.reprojections = {}
         self.reprojection_ers = {}
-        # triangulation sets, only ransac
+        # Triangulation camera sets, only for ransac
         self.best_sets_frames = {}
         self.triang_dic_frames = {}
 
+        # Number of individuals
         self.nb_individuals = nb_individuals
 
+        # Visualization specific
         self.scatter3d = None
         self.title_mocap = None
         self.lines_mocap = None
         self.conf_threshold = 0.1
         self.show_skeleton = True
 
+
+        # Smaller marker pair set of macaques
         self.marker_pairs = ((1, 2), (2, 4), (2, 5), (3, 4), (3, 5), (3, 6), (6, 9), (9, 10), (9,11), (9,12), (12,13), (12,19),
                              (13, 14), (14, 15), (15,16), (15,17), (17,18),
                              (19, 20), (20, 21), (21, 22), (21, 23), (23,24), (12,25), (25, 36), (36, 26), (36,31),
@@ -75,17 +81,11 @@ class System:
                              (31, 32), (32, 33),(33, 34), (33, 35), (36,37), (37,38))
 
 
-        self.fix_aspec = fix_aspec
-        self.skip_frames = skip_frames
-        self.manual_inspection = manual_inspection
-        self.title_prefix = None
-
         # For animation
+        self.title_prefix = None
         self.snapshot = 0
         self.limb_constraints = None
         self.with_ransac = False
-
-        self.p3dt = None
 
     def init_default_labels(self, nb_individuals=1):
         # Create an empty array of nb markers and vid_length
@@ -143,16 +143,9 @@ class System:
         return self.scatter3d, self.lines_mocap, self.title_mocap,
 
     def show_3d_poses_as_video(self, lims=[[-600, 400],[-400, 600],[-200, 500]], show_skeleton=True,
-                               length=None, bodyparts=None, title_prefix="", set_lims=True):
+                               length=None, title_prefix="", set_lims=True):
         """
         Animation function of previously loaded poses
-        :param lims:
-        :param show_skeleton:
-        :param length:
-        :param bodyparts:
-        :param title_prefix:
-        :param set_lims:
-        :return:
         """
 
         # Init figure and ax
@@ -163,7 +156,6 @@ class System:
             ax.set_xlim(lims[0][0], lims[0][1])
             ax.set_ylim(lims[1][0], lims[1][1])
             ax.set_zlim(lims[2][0], lims[2][1])
-
 
         # Get initial 3d pose
         p_3d = self.poses[0]
@@ -178,18 +170,16 @@ class System:
         ax.set_ylabel("Y")
         ax.set_zlabel("Z")
 
-        # Scatter axis points
+        # Scatter cameras in plot
         for cam_key, cam in self.sys_dict.items():
-
             R_abs, t_abs = utils.rel_abs_conversion(cam.R, cam.t)
-
             t_abs = np.squeeze(t_abs)
 
             ax.scatter(t_abs[0], t_abs[1], t_abs[2], s=20, c='k')
             ax.text(t_abs[0], t_abs[1], t_abs[2], f"{cam_key}", color='k')
 
-        self.title_prefix = title_prefix
         # Make title and save in class
+        self.title_prefix = title_prefix
         title = ax.set_title(title_prefix)
         self.title_mocap = title
 
@@ -250,24 +240,19 @@ class System:
     def load_labeled_image(self, frame, cam_name, extension = 'png'):
         """
         Load labeled image for a given frame and camera (by name)
-        :param frame:
-        :return:
         """
-
         img = cv2.imread(os.path.join(self.vid_path, rf'labeled_images\cam{cam_name}\{frame}.{extension}'))
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
         return img
-
-
-    def show_labeled_image(self, frame, name, m2_r=None, text=None, title="Image"):
-
+    def show_labeled_image(self, frame, name, m2_r=None, text=None):
+        """
+        Display a labeled image
+        """
         img = self.load_labeled_image(frame, name)
-        #frame_idx = self.frames_labeled_indices.tolist().index(frame)
         label = self.labels[name][:, :, frame]
         occ = self.occs[name][:, frame]
 
-        #c
+        # Visible and non-visible markers of labeled image
         vis = label[occ == 0][:]
         n_vis = label[occ == 1][:]
 
@@ -304,18 +289,18 @@ class System:
                     ransac_minimal=True):
         """
 
-        :param vis_labels:
-        :param undist:
-        :param ransac:
-        :param orig_labels:
-        :return:
-        X - 3d position as ndarray (3,)
-
+        :param vis_labels: Dictionary of cameras with a particularly visible 2d marker for that camera
+        :param undist: Undistort labels
+        :param ransac: Use sets of cameras for minimal reprojection error
+        :param orig_labels: For calibration analysis
+        :param min_nb_triang: Minimum number of cameras in a set
+        :param max_nb_triang: Maximum number of cameras in a set
+        :param ransac_minimal: Reduce ransac output only to the 3D estimate
+        :return: X (3, ) best estimate, best index, triang dic with reprojection errors
         """
 
         points = {}
         cam_Ms = {}
-
 
         for index, name in enumerate(vis_labels.keys()):
             coords = vis_labels[name]
@@ -365,7 +350,15 @@ class System:
             return X, np.array(er_list).mean(), False, False, False
 
     def ransac_triangulation(self, dist_points, Ms, orig_points=None, min_nb_triang=2, max_nb_triang=0):
-
+        """
+        Implementation of Ransac triangulation for retrieving minimal reprojection error for a given set
+        :param dist_points: Distorted points
+        :param Ms: World to camera transform
+        :param orig_points: Orig points in case of calibration analysis
+        :param min_nb_triang: Minimum number of cameras in a set
+        :param max_nb_triang: Maximum number of cameras in a set
+        :return:
+        """
         # Get all possible triangulation sets
         sets = utils.powerset(dist_points, min_nb_triangulation=min_nb_triang, max_set=max_nb_triang)
 
@@ -433,7 +426,7 @@ class System:
 
 
     def pose_dict_to_point_tracks(self, marker_dicts, frame):
-
+        # Analysis of calibration
         table = -1 * np.ones(shape=(1, self.sys_dict.__len__(), marker_dicts.__len__(), 2))
 
         for key, value in marker_dicts.items():
@@ -449,7 +442,20 @@ class System:
 
     def lift_pose(self, frame, show=False, save_as_point_track=False, undistort=True, ransac=False, verbose=False,
                   save_pose_npy=False, forced_ind_index=None, min_nb_triang=2, max_nb_triang=0):
-
+        """
+        Lift the pose of a specific frame
+        :param frame: The frame to pose
+        :param show: Display the pose?
+        :param save_as_point_track: Save in track format?
+        :param undistort: Undistort points
+        :param ransac: Ransac or simple DLT?
+        :param verbose: Show process
+        :param save_pose_npy: Save as npy?
+        :param forced_ind_index: Change individual index
+        :param min_nb_triang: Minimum number of cameras in a set
+        :param max_nb_triang: Maximum number of cameras in a set
+        :return:
+        """
         p_3d = np.zeros((self.nb_markers*self.nb_individuals, 3))
         marker_dicts = {}
 
@@ -532,7 +538,7 @@ class System:
         return p_3d, mean_rep_pose, best_sets, triang_dicts
 
     def load_labels(self):
-
+        # Load labels from files
         labels = np.load(os.path.join(self.vid_path, "labels.npy"), allow_pickle=True)[()]
         self.labels = labels
         self.occs = np.load(os.path.join(self.vid_path, "occs.npy"), allow_pickle=True)[()]
@@ -545,7 +551,7 @@ class System:
             self.gt_labels = copy.deepcopy(labels)
 
     def show_pose_3d(self, m_3d, frame, mean_marker_rep_error, show_skel=True):
-
+        # Show pose in 3d
         fig = plt.figure(figsize=(12, 12))
         ax = fig.add_subplot(projection='3d')
 
@@ -568,8 +574,6 @@ class System:
             ax.text(m_3d[m, 0], m_3d[m, 1], m_3d[m, 2], '%s' %
                     (str((m % self.nb_markers)+1)), size=10, zorder=1, color='k')
 
-
-
         for pair in self.marker_pairs:
 
             for ind_index in range(self.nb_individuals):
@@ -590,15 +594,14 @@ class System:
         plt.show()
 
 
-    def reproject_single(self, frame, name, p_3d = None, show=False, text=True, title="Image"):
+    def reproject_single(self, frame, name, p_3d = None, show=False, text=True):
         """
-
-        :param frame:
-        :param name:
-        :param p_3d:
-        :param show:
-        :param text:
-        :param title:
+        Reproject a single 3d point into a specific camera view
+        :param frame: The frame to reproject
+        :param name: Name of the camera
+        :param p_3d: The 3D point
+        :param show: Display?
+        :param text: Text for display
         :return: m2d_r of shape 1x2
         """
         cam = self.sys_dict[name]
@@ -616,18 +619,17 @@ class System:
             # because we init 3d points with (0,0,0) need to be excluded for errors
             m2d_r[np.where(p_3d.sum(axis=1) == 0), :] = 0
         if show:
-            self.show_labeled_image(frame, name, m2d_r, text, title)
+            self.show_labeled_image(frame, name, m2d_r, text)
             return True
 
         return m2d_r
 
-
     def read_cam_params(self, alter_path=None, extension = "sys_calib"):
-
         """
-        Reads back camera parameters that were exported to matlab via
-        save_camera_parameters_to_mat()
-        :param base_path:
+        Read calibration parameters from calibration file
+        Either toml format or matlab format, also checking potential re-calibration files
+        :param alter_path: An alternative path to load the calibration
+        :param extension: Different naming of the matlab file?
         :return:
         """
 
@@ -637,14 +639,11 @@ class System:
         if alter_path is not None:
             obj_array = sio.loadmat(os.path.join(alter_path, extension + '.mat'))
         else:
-
             if '.json' in self.calib_path:
                 self.read_cam_params_from_json(self.calib_path)
-
                 return True
 
             else:
-
                 try:
                     obj_array = sio.loadmat(os.path.join(self.calib_path, extension + '.mat'))
                 except OSError:
@@ -670,7 +669,11 @@ class System:
         print("Parameters loaded.")
 
     def read_cam_params_from_toml(self, base_path):
-
+        """
+        Read the camera parameters from toml file
+        :param base_path: Path of the calibration toml file
+        :return:
+        """
 
         if '.toml' in base_path:
             cam_file = toml.load(base_path)
@@ -694,7 +697,11 @@ class System:
         self.sys_dict = dict(sorted(self.sys_dict.items()))
 
     def read_cam_params_from_json(self, json_path):
-
+        """
+        Read the camera parameters from json
+        :param json_path: Json path
+        :return:
+        """
         with open(json_path) as f:
             d = json.load(f)
         cameras_json = d["Calibration"]["cameras"]
@@ -763,7 +770,11 @@ class System:
 
 
     def export_cam_params_as_toml(self, base_path):
-
+        """
+        Export the camera parameters to toml
+        :param base_path: Path to export to
+        :return:
+        """
 
         save_dict = {}
 
@@ -805,40 +816,24 @@ class System:
         with open(join(base_path, "calibration.toml"), 'w') as f:
             toml.dump(save_dict, f, encoder=toml.TomlNumpyEncoder())
 
-
-
     def save_labels(self, alter_string = ""):
-
+        # Save the labels
         np.save(os.path.join(self.vid_path, f"labels{alter_string}.npy"), self.labels)
         np.save(os.path.join(self.vid_path, f"occs{alter_string}.npy"), self.occs)
 
 class Camera:
     def __init__(self):
 
+        # OpenCV specific placeholders
         self.name = None
         self.K = None
         self.d = None
         self.r = None
         self.t = None
         self.R = None
-
-        self.board = None
-
-        self.nb_frames = None
-
-        self.detected_ids = None
-        self.Ch_corners = None
-        self.Ch_ids = None
-
-        self.real_ch_corners = None
-        self.real_ch_ids = None
-
-        self.det_images = None
-
-        self.f_images_ids = None
-
         self.calib_error = None
         self.im_size = None
 
     def get_rot_mat(self):
+        # Return the extrinsic rotation matrix instead of axis-angle for that camera
         return cv2.Rodrigues(self.r)
