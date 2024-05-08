@@ -4,7 +4,21 @@ MacAction: Realistic 3D macaque body animation based on multi-camera markerless 
 https://www.biorxiv.org/content/10.1101/2024.01.29.577734v2
 
 
-# Structure
+## Installation
+Assuming, you have conda installed:
+
+Open your terminal, and clone the project repository by running:
+```code
+git clone https://github.com/your-username/your-project-name.git
+```
+Then navigate to the repository.
+
+Use the `environment.yml` file provided in the project's root directory to create a Conda environment. Run the following command:
+```code
+conda env create -f environment.yml
+```
+
+## Data
 To run code examples, please first download the data at: ...
 and put the data in a root-folder **data** in this project.
 
@@ -19,6 +33,13 @@ MacAction
 │   └───MotionCapture
 │   └───UncannyValley
 ```
+## Running scripts
+Afterwards activate your environment, navigate to the executables folder and run the scripts by:
+```code
+python script_name.py
+```
+or execute and alter them from your favourite IDE. To execute **_run_labeling.py_**, please first extract images with 
+the frame extractor **_run_frame_extraction.py_**!
 
 ## AnimLabel Software
 Three scripts that can be executed.
@@ -27,7 +48,7 @@ Three scripts that can be executed.
 2. _run_labeling.py_: Run the multi-animal multi-view labeling pipeline with reprojection and epipolar lines
 3. _gamma_and_compression.py_: Gamma correct, resize, and compress videos.  
 
-FrameExtractor (1.) Usage: Extract frames of an action that you want to track
+FrameExtractor - Usage: Extract frames of an action that you want to track
 - &larr; and &rarr; : Navigate frames within a video
 - &uarr; and &darr; : Navigate the cameras within the scene for a specific frame
 - r : Retrieve the current frame across cameras and save it to disc
@@ -35,7 +56,7 @@ FrameExtractor (1.) Usage: Extract frames of an action that you want to track
 - -: Decrease the number of frames to move in time by 1
 - e: Exit the application
 
-AnimLabel (2.) Usage: Label an action that you extracted frames of, Start with the first frame and click the markers from multiple views of the same location, then move to the next marker by pressing n, continue until done. re-projections appear after two clicked points and epipolar lines can help (toggle t) for labeling. Changing the individual can be achieved by pressing i, and the keyframe to label with arrow keys. Afterwards, save the data by pressing d.
+AnimLabel - Usage: Label an action that you extracted frames of, Start with the first frame and click the markers from multiple views of the same location, then move to the next marker by pressing n, continue until done. re-projections appear after two clicked points and epipolar lines can help (toggle t) for labeling. Changing the individual can be achieved by pressing i, and the keyframe to label with arrow keys. Afterwards, save the data by pressing d.
 
 - &larr; and &rarr; : Navigate frames within a video
 - Mouse click: Click a point and make it marked

@@ -1,6 +1,16 @@
-import sys
-from scripts.label import Labeling
+### Script for running the labeling pipeline
 
+# Configure the project root and import scripts
+import sys
+import os
+current_script_path = os.path.abspath(__file__)
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_script_path)))
+
+# Append and use
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
+from scripts.label import Labeling
 
 # Calibration and video path
 calib_path = r"../../data/AnimLabel/calibration.toml"

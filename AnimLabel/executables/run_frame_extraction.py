@@ -1,6 +1,14 @@
+import sys
+import os
+current_script_path = os.path.abspath(__file__)
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_script_path)))
+
+# Append and use
+if project_root not in sys.path:
+    sys.path.append(project_root)
+
 from scripts.extract_frames_videos import VideoExtractor
 from PyQt5.QtWidgets import QApplication
-import sys
 
 
 # Video path to extract frames from
