@@ -26,7 +26,9 @@ and put the data in a root-folder **data** in this project.
 MacAction
 │   README.md
 │   AnimLabel
-|   MotionCapture    
+│   └───executables
+|   MotionCapture
+│   └───executables    
 │   UncannyValley
 └───data
 │   └───AnimLabel
@@ -44,7 +46,7 @@ the frame extractor **_run_frame_extraction.py_**!
 ## AnimLabel Software
 Three scripts that can be executed.
 
-1. _run_frame_extraction.py_: Extract frames from a video so you can label them
+1. _run_frame_extraction.py_: Extract frames from a video so you can label them, extract f.ex. frame 250
 2. _run_labeling.py_: Run the multi-animal multi-view labeling pipeline with reprojection and epipolar lines
 3. _gamma_and_compression.py_: Gamma correct, resize, and compress videos.  
 

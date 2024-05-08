@@ -17,10 +17,9 @@ calib_path = r"../../data/AnimLabel/calibration.toml"
 vid_path = r"../../data/AnimLabel/"
 
 # Labels and individuals in scene
-labels = ["Neck","Nose","BodyCenter","lShoulder","lElbow","lWrist","lHip","rShoulder","rElbow","rWrist","rHip","lEye",
-          "lEar","rEye","rEar"]
+labels = ["Marker1", "Marker2", "Marker3", "Marker4", "Marker5"]
 
-names_individuals=['Ind1', 'Ind2', 'Ind3', 'Ind4', 'Ind5', 'Ind6']
+names_individuals=['Ind1', 'Ind2']
 
 # Configuration path for canvas
 config_path = r"../../data/AnimLabel/canvas_config.yaml"
