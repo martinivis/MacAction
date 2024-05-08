@@ -9,7 +9,7 @@ Assuming, you have conda installed:
 
 Open your terminal, and clone the project repository by running:
 ```code
-git clone https://github.com/your-username/your-project-name.git
+git clone https://github.com/martinivis/MacAction.git
 ```
 Then navigate to the repository.
 
