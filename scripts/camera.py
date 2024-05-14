@@ -225,12 +225,12 @@ class System:
 
             # Save animation
             ani.save(join(anim_path, f"mocap_{self.conf_threshold}_{self.limb_constraints}_{self.with_ransac}_"
-                                     f"skel{self.show_skeleton}.mp4"))
+                                     f"skel{self.show_skeleton}.gif"))
 
         else:
 
             # Save the animation
-            ani.save(join(self.vid_path,  f"mocap_as_video.mp4"))
+            ani.save(join(self.vid_path,  f"mocap_as_video.gif"))
 
         # Close the figure
         plt.close(fig)
